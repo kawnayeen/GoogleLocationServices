@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">GettingStarted</string>
+    <string name="location_goes_here">Location goes here</string>
 </resources>
