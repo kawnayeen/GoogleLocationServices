@@ -82,8 +82,12 @@ public class MainActivity extends AppCompatActivity implements ConnectionCallbac
 
     @Override
     public void onLocationChanged(Location location) {
-        //locationText.setText(location.toString());
-        locationText.setText(Double.toString(location.getLatitude()));
+        String locationStr = "Current Location\n";
+        locationStr += "Latitude : " + Double.toString(location.getLatitude()) + "\n";
+        locationStr += "Longitude : " + Double.toString(location.getLongitude()) + "\n";
+        locationStr += "Altitude : " + Double.toString(location.getAltitude()) + "\n";
+        locationStr += "Bearing : " + Float.toString(location.getBearing());
+        locationText.setText(locationStr);
     }
 
 
