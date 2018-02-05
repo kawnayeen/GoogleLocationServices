@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public static final int GPS_TURN_ON_REQUEST = 1000;
     GoogleApiClient googleApiClient;
     private FusedLocationProviderClient fusedLocationClient;
+    private LocationCallback locationCallback;
     TextView latitudeText;
     TextView longitudeText;
 
@@ -50,6 +51,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
+
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult.getLastLocation() != null) {
+                    updateLatLong(locationResult.getLastLocation());
+                }
+            }
+        };
     }
 
     @Override
@@ -73,13 +83,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         locationRequest.setFastestInterval(2 * 1000);
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        fusedLocationClient.requestLocationUpdates(locationRequest, new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult.getLastLocation() != null)
-                    onLocationChanged(locationResult.getLastLocation());
-            }
-        }, null);
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
 
         // requesting location settings status
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
@@ -115,11 +119,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     }
 
-    public void onLocationChanged(Location location) {
-        if (location != null) {
-            longitudeText.setText("Longitude : " + location.getLongitude());
-            latitudeText.setText("Latitude : " + location.getLatitude());
-        }
+    public void updateLatLong(Location location) {
+        longitudeText.setText("Longitude : " + location.getLongitude());
+        latitudeText.setText("Latitude : " + location.getLatitude());
+        if (fusedLocationClient != null && locationCallback != null)
+            fusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
     //// -------
