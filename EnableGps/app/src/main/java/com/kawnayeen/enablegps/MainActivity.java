@@ -17,21 +17,24 @@ import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.Status;
-import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResult;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.google.android.gms.location.LocationSettingsResponse;
+import com.google.android.gms.location.SettingsClient;
+import com.google.android.gms.tasks.Task;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, LocationListener {
+        GoogleApiClient.OnConnectionFailedListener {
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
     public static final int GPS_TURN_ON_REQUEST = 1000;
     GoogleApiClient googleApiClient;
+    private FusedLocationProviderClient fusedLocationClient;
     TextView latitudeText;
     TextView longitudeText;
 
@@ -69,35 +72,30 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         locationRequest.setInterval(5 * 1000);
         locationRequest.setFastestInterval(2 * 1000);
 
-        // requesting contentious location update
-        LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        fusedLocationClient.requestLocationUpdates(locationRequest, new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult.getLastLocation() != null)
+                    onLocationChanged(locationResult.getLastLocation());
+            }
+        }, null);
 
         // requesting location settings status
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
                 .addLocationRequest(locationRequest).setAlwaysShow(true);
-        PendingResult<LocationSettingsResult> result =
-                LocationServices.SettingsApi.checkLocationSettings(googleApiClient, builder.build());
-        result.setResultCallback(this::checkGpsStatus);
-    }
-
-    // once location
-    private void checkGpsStatus(LocationSettingsResult locationSettings) {
-        final Status status = locationSettings.getStatus();
-        switch (status.getStatusCode()) {
-            case LocationSettingsStatusCodes.SUCCESS:
-                break;
-            case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                // Location settings are not satisfied. But could be fixed by showing the user
-                // a dialog.
+        SettingsClient client = LocationServices.getSettingsClient(this);
+        Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
+        task.addOnFailureListener(this, e -> {
+            if (e instanceof ResolvableApiException) {
                 try {
-                    status.startResolutionForResult(this, GPS_TURN_ON_REQUEST);
-                } catch (IntentSender.SendIntentException e) {
-                    // Ignore the error.
+                    ResolvableApiException resolvable = (ResolvableApiException) e;
+                    resolvable.startResolutionForResult(MainActivity.this,
+                            GPS_TURN_ON_REQUEST);
+                } catch (IntentSender.SendIntentException ignored) {
                 }
-                break;
-            case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                break;
-        }
+            }
+        });
     }
 
     @Override
@@ -117,7 +115,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     }
 
-    @Override
     public void onLocationChanged(Location location) {
         if (location != null) {
             longitudeText.setText("Longitude : " + location.getLongitude());
